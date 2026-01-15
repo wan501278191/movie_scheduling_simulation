@@ -1,0 +1,21 @@
+{
+  "description": "SAC Hybrid-State Final Run (Optimized for 100k data)",
+  "random_seed": 42,
+
+  "//": "--- 核心超参数 ---",
+  "learning_rate": 0.0003,
+  "learning_rate_alpha": 0.0001,
+  "batch_size": 64,
+  "gamma": 0.99,
+  "tau": 0.005,
+  "softmax_temp": 10.0,
+
+  "//": "--- 训练规模 ---",
+  "num_episodes": 60,
+  "memory_capacity": 50000,
+  "start_training_steps": 2000,
+
+  "//": "--- 环境配置 ---",
+  "online_movie_count": 8,
+  "total_show_count": 30
+}

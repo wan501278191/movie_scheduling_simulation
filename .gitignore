@@ -1,0 +1,14 @@
+# Log files
+*.log
+
+# Data files
+*.npz
+
+# Model weights
+*.h5
+
+# IDE files
+.idea/
+
+# 也可以精确指定那个超大的文件
+experiments/02_lstm_test_2000/simulation_full.log
