@@ -6,6 +6,7 @@ import os
 
 
 # --- 注意：这里绝对不能有 from policys.sac_policy import SACAgent ---
+USE_CUDNN_FLAG = False
 
 class ActorNetwork(tf.keras.Model):
     def __init__(self, action_dim, hidden_num=128):
@@ -17,7 +18,7 @@ class ActorNetwork(tf.keras.Model):
         self.masking = layers.Masking(mask_value=0.0)
         # 在每一层后面加上 kernel_initializer=init
         self.shared_lstm = layers.LSTM(hidden_num, return_sequences=False,
-                                       kernel_initializer=init, name='shared_lstm')
+                                       kernel_initializer=init, name='shared_lstm', use_cudnn=USE_CUDNN_FLAG)
         self.shared_dense = layers.Dense(hidden_num, activation='relu',
                                          kernel_initializer=init, name='shared_dense')
         self.mean_layer = layers.Dense(1, kernel_initializer=init, name='movie_mean')
@@ -45,13 +46,13 @@ class CriticNetwork(tf.keras.Model):
 
         self.masking = layers.Masking(mask_value=0.0)
         self.lstm1 = layers.LSTM(hidden_num, return_sequences=False,
-                                 kernel_initializer=init, name='q1_lstm')
+                                 kernel_initializer=init, name='q1_lstm', use_cudnn=USE_CUDNN_FLAG)
         self.dense1 = layers.Dense(hidden_num, activation='relu',
                                    kernel_initializer=init, name='q1_dense')
         self.out1 = layers.Dense(1, kernel_initializer=init, name='q1_output')
 
         self.lstm2 = layers.LSTM(hidden_num, return_sequences=False,
-                                 kernel_initializer=init, name='q2_lstm')
+                                 kernel_initializer=init, name='q2_lstm', use_cudnn=USE_CUDNN_FLAG)
         self.dense2 = layers.Dense(hidden_num, activation='relu',
                                    kernel_initializer=init, name='q2_dense')
         self.out2 = layers.Dense(1, kernel_initializer=init, name='q2_output')
