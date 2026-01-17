@@ -38,6 +38,7 @@ def setup_dual_loggers(experiment_dir):
     stats_logger.setLevel(logging.INFO)
     if not stats_logger.handlers:
         sfh = logging.FileHandler(os.path.join(experiment_dir, 'sac_training.log'), encoding='utf-8')
+        print("sac_training path:", os.path.join(experiment_dir, 'sac_training.log'))
         sfh.setFormatter(logging.Formatter('%(asctime)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
         stats_logger.addHandler(sfh)
     stats_logger.propagate = False
@@ -46,6 +47,7 @@ def setup_dual_loggers(experiment_dir):
     sim_logger.setLevel(logging.INFO)
     if not sim_logger.handlers:
         dfh = logging.FileHandler(os.path.join(experiment_dir, 'sac_simulation.log'), encoding='utf-8')
+        print("sac_training path:", os.path.join(experiment_dir, 'sac_simulation.log'))
         dfh.setFormatter(logging.Formatter('%(asctime)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
         sim_logger.addHandler(dfh)
     sim_logger.propagate = False
