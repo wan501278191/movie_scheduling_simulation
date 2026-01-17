@@ -178,7 +178,7 @@ def train_sac_only(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # 修改1: 去掉 required=True，加上 default，防止不传参报错
-    parser.add_argument('--config', type=str, default='04_sac_change_env.json', help='配置文件路径')
+    parser.add_argument('--config', type=str, default='11_sac_new_env.json', help='配置文件路径')
     args, _ = parser.parse_known_args()
 
     # 修改2: 智能寻找文件路径 (支持当前目录、configs目录、以及绝对路径)
@@ -186,6 +186,7 @@ if __name__ == '__main__':
     candidate_paths = [
         args.config,  # 命令行指定的路径
         os.path.join(current_dir, args.config),  # 当前脚本同级目录
+        os.path.join(current_dir, '../configs', args.config),  # configs子目录
         os.path.join(current_dir, 'configs', args.config),  # configs子目录
         os.path.join(os.getcwd(), args.config)  # 工作目录
     ]
