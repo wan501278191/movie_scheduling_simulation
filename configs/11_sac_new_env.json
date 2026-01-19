@@ -5,6 +5,8 @@
   "//": "--- 核心超参数 ---",
   "learning_rate": 0.0003,
   "learning_rate_alpha": 0.00001,
+  "alpha_min": 1e-6,
+  "alpha_lr_decay_factor": 0.1,
   "batch_size": 256,
   "gamma": 0.99,
   "tau": 0.005,

@@ -82,13 +82,16 @@ class CriticNetwork(tf.keras.Model):
 class SACAgent:
     def __init__(self, online_movie_num, feature_columns, look_back_horizon,
                  learning_rate_actor=3e-4, learning_rate_critic=3e-4, learning_rate_alpha=3e-4,
-                 gamma=0.99, tau=0.005, target_entropy=None, softmax_temp=1.0):
+                 gamma=0.99, tau=0.005, target_entropy=None, softmax_temp=1.0,
+                 alpha_min=1e-6, alpha_lr_decay_factor=0.1):
         self.online_movie_num = online_movie_num
         self.feature_dim = len(feature_columns)
         self.look_back_horizon = look_back_horizon
         self.gamma = gamma
         self.tau = tau
         self.softmax_temp = softmax_temp
+        self.alpha_min = alpha_min  # alpha的最小值限制
+        self.alpha_lr_decay_factor = alpha_lr_decay_factor  # alpha学习率衰减因子
         self.actor = ActorNetwork(action_dim=online_movie_num)
         self.critic1 = CriticNetwork()
         self.critic2 = CriticNetwork()
@@ -99,7 +102,7 @@ class SACAgent:
         self.target_critic2.set_weights(self.critic2.get_weights())
         self.actor_optimizer = tf.keras.optimizers.Adam(learning_rate_actor)
         self.critic_optimizer = tf.keras.optimizers.Adam(learning_rate_critic)
-        self.alpha_optimizer = tf.keras.optimizers.Adam(learning_rate_alpha)
+        self.alpha_optimizer = tf.keras.optimizers.Adam(learning_rate_alpha * alpha_lr_decay_factor)  # 降低alpha的学习率
         if target_entropy is None:
             self.target_entropy = -np.log(1.0 / online_movie_num) * 2.0
         else:
@@ -175,6 +178,11 @@ class SACAgent:
 
         alpha_grads = tape.gradient(alpha_loss, [self.log_alpha])
         self.alpha_optimizer.apply_gradients(zip(alpha_grads, [self.log_alpha]))
+        
+        # 添加alpha下限约束
+        alpha_current = tf.exp(self.log_alpha)
+        if alpha_current < self.alpha_min:
+            self.log_alpha.assign(tf.math.log(tf.constant(self.alpha_min, dtype=tf.float32)))
 
         for t, s in zip(self.target_critic1.variables, self.critic1.variables):
             t.assign(t * (1 - self.tau) + s * self.tau)

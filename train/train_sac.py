@@ -82,7 +82,9 @@ def train_sac_only(args):
                     total_show_count=args.total_show_count, enable_logging=True)
 
     agent = SACAgent(online_movie_num=args.online_movie_count,
-                     feature_columns=env.sac_feature_columns, look_back_horizon=7)
+                     feature_columns=env.sac_feature_columns, look_back_horizon=7,
+                     alpha_min=getattr(args, 'alpha_min', 1e-6), 
+                     alpha_lr_decay_factor=getattr(args, 'alpha_lr_decay_factor', 0.1))
 
     memory = MemoryDict(capacity=args.memory_capacity)
     BEST_MODEL_PATH = os.path.join(experiment_dir, 'sac_policy_best.h5')
