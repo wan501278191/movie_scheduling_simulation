@@ -176,7 +176,7 @@ SCENARIOS = {
     "高开低走 (High Start Low End)": FLOP_LIST
 }
 
-EVAL_ALL_MOVIES = True
+EVAL_ALL_MOVIES = False
 
 if EVAL_ALL_MOVIES:
     movie_release_date_dict = load_movie_release_dates()
@@ -191,169 +191,198 @@ def collect_scheduling_data():
     """收集各策略的排片率数据"""
     set_seeds(42)
     
+    # 设置日志文件
+    log_dir = os.path.join("logs", "main_case_show")
+    os.makedirs(log_dir, exist_ok=True)
+    log_file_path = os.path.join(log_dir, "scheduling_evaluation.log")
+    
+    def print_and_log(message, f_handle):
+        print(message)
+        f_handle.write(message + '\n')
+        f_handle.flush()
+    
     EVAL_CONFIG = {
         'softmax_temp': 1.0,
         'model_path': 'experiments/11_sac_new_env/sac_policy_best.h5'
     }
     
-    log_dir = os.path.join("logs", "main_case_show")
-    os.makedirs(log_dir, exist_ok=True)
     eval_logger = Logger(logdir=log_dir, is_print=False)
     
-    try:
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        project_root = current_dir
-    except NameError:
-        project_root = os.getcwd()
-        
-    env_config_path = os.path.join(project_root, 'configs', 'evaluation_env.json')
-    try:
-        with open(env_config_path, 'r', encoding='utf-8') as f:
-            env_config = json.load(f)
-    except FileNotFoundError:
-        env_config = {'online_movie_count': 8, 'total_show_count': 30}
-        
-    EVAL_MOVIE_COUNT = env_config.get('online_movie_count', 8)
-    EVAL_SHOW_COUNT = env_config.get('total_show_count', 30)
+    # 打开日志文件
+    with open(log_file_path, 'w', encoding='utf-8') as log_file:
+        header = f"--- 开始排片率评估: {pd.Timestamp.now()} ---\n"
+        print_and_log(header, log_file)
     
-    # 预加载 SAC 模型
-    print("--- 正在预加载 SAC 策略模型 ---")
-    sac_agent_instance = SACAgent(
-        online_movie_num=EVAL_MOVIE_COUNT,
-        feature_columns=['dummy'] * 7,
-        look_back_horizon=7
-    )
-    
-    correct_feature_dim = 7
-    dummy_state = np.zeros((1, EVAL_MOVIE_COUNT, 7, correct_feature_dim), dtype=np.float32)
-    
-    try:
-        _ = sac_agent_instance.step(dummy_state)
-        print("--- 策略模型 Build 完成 ---")
-    except Exception:
-        pass
-    
-    # 加载权重
-    model_path = EVAL_CONFIG['model_path']
-    actor_weights_path = model_path.replace(".h5", "_actor.weights.h5")
-    
-    if os.path.exists(actor_weights_path):
-        sac_agent_instance.load_weights(model_path)
-        print(f"--- 权重加载成功: {model_path} ---")
-    else:
-        print(f"!!! 警告: 未找到 SAC 模型文件: {actor_weights_path} !!!")
-    
-    # 存储所有数据
-    all_scheduling_data = []
-    
-    # 策略配置
-    policies = {
-        "RL (SAC)": {
-            'type': 'SAC',
-            'use_constraint': True,
-            'temp': EVAL_CONFIG['softmax_temp']
-        },
-        "静态启发式策略": {'type': 'Static', 'use_constraint': True},
-        "效率启发式策略": {'type': 'Efficiency', 'use_constraint': True},
-        "贪婪启发式策略": {'type': 'Greedy', 'use_constraint': True}
-    }
-    
-    # 遍历所有场景和电影
-    for scenario_name, dates_list in SCENARIOS.items():
-        print(f"\n处理场景: {scenario_name}")
-        
-        for date_info in dates_list:
-            start_date_str = date_info['date']
-            target_movie_name = date_info['case_study_movie']
+        try:
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            project_root = current_dir
+        except NameError:
+            project_root = os.getcwd()
             
-            print(f"  处理电影: {target_movie_name} (起始日期: {start_date_str})")
+        env_config_path = os.path.join(project_root, 'configs', 'evaluation_env.json')
+        try:
+            with open(env_config_path, 'r', encoding='utf-8') as f:
+                env_config = json.load(f)
+        except FileNotFoundError:
+            env_config = {'online_movie_count': 8, 'total_show_count': 30}
             
-            # 为每种策略收集数据
-            for policy_name, config in policies.items():
-                set_seeds(42)
+        EVAL_MOVIE_COUNT = env_config.get('online_movie_count', 8)
+        EVAL_SHOW_COUNT = env_config.get('total_show_count', 30)
+        
+        # 预加载 SAC 模型
+        print_and_log("--- 正在预加载 SAC 策略模型 ---", log_file)
+        sac_agent_instance = SACAgent(
+            online_movie_num=EVAL_MOVIE_COUNT,
+            feature_columns=['dummy'] * 7,
+            look_back_horizon=7
+        )
+        
+        correct_feature_dim = 7
+        dummy_state = np.zeros((1, EVAL_MOVIE_COUNT, 7, correct_feature_dim), dtype=np.float32)
+        
+        try:
+            _ = sac_agent_instance.step(dummy_state)
+            print_and_log("--- 策略模型 Build 完成 ---", log_file)
+        except Exception:
+            pass
+        
+        # 加载权重
+        model_path = EVAL_CONFIG['model_path']
+        actor_weights_path = model_path.replace(".h5", "_actor.weights.h5")
+        
+        if os.path.exists(actor_weights_path):
+            sac_agent_instance.load_weights(model_path)
+            print_and_log(f"--- 权重加载成功: {model_path} ---", log_file)
+        else:
+            print_and_log(f"!!! 警告: 未找到 SAC 模型文件: {actor_weights_path} !!!", log_file)
+        
+        # 存储所有数据
+        all_scheduling_data = []
+        
+        # 策略配置
+        policies = {
+            "RL (SAC)": {
+                'type': 'SAC',
+                'use_constraint': True,
+                'temp': EVAL_CONFIG['softmax_temp']
+            },
+            "静态启发式策略": {'type': 'Static', 'use_constraint': True},
+            "效率启发式策略": {'type': 'Efficiency', 'use_constraint': True},
+            "贪婪启发式策略": {'type': 'Greedy', 'use_constraint': True}
+        }
+        
+        # 遍历所有场景和电影
+        for scenario_name, dates_list in SCENARIOS.items():
+            print_and_log(f"\n{'#' * 60}\n{'#' * 15} 开始评估场景: {scenario_name} {'#' * 15}\n{'#' * 60}", log_file)
+        
+            for date_info in dates_list:
+                start_date_str = date_info['date']
+                target_movie_name = date_info['case_study_movie']
                 
-                # 创建环境
-                env = CinemaGym(
-                    logger=eval_logger,
-                    online_movie_count=EVAL_MOVIE_COUNT,
-                    total_show_count=EVAL_SHOW_COUNT,
-                    enable_logging=False
-                )
+                print_and_log(f"\n===== 正在使用起始日期: {start_date_str} 评估电影: {target_movie_name} =====", log_file)
+            
+                # 为每种策略收集数据
+                for policy_name, config in policies.items():
+                    set_seeds(42)
                 
-                # 设置起始日期
-                target_date = pd.to_datetime(start_date_str)
-                env.current_date = target_date
-                env._update_current_movies()
-                state = env._get_observation()
+                    # 创建环境
+                    env = CinemaGym(
+                        logger=eval_logger,
+                        online_movie_count=EVAL_MOVIE_COUNT,
+                        total_show_count=EVAL_SHOW_COUNT,
+                        enable_logging=False
+                    )
                 
-                # 初始化策略代理
-                agent = None
-                if config['type'] == 'SAC':
-                    agent = sac_agent_instance
-                elif policy_name == "静态启发式策略":
-                    agent = StaticHeuristic(
-                        init_action=np.array([1 / env.online_movie_count] * env.online_movie_count))
-                elif policy_name == "效率启发式策略":
-                    init_act = np.array([1 / env.online_movie_count] * env.online_movie_count)
-                    current_movie_names = [m['MovieName'] for m in env.current_movie_list]
-                    agent = EfficiencyHeuristic(
-                        init_action=init_act,
-                        next_day_movie_name=current_movie_names,
-                        total_show_count=env.total_show_count)
-                elif policy_name == "贪婪启发式策略":
-                    agent = GreedyHeuristic()
+                    # 设置起始日期
+                    target_date = pd.to_datetime(start_date_str)
+                    env.current_date = target_date
+                    env._update_current_movies()
+                    state = env._get_observation()
                 
-                # 收集30天的数据
-                movie_scheduling_rates = []  # 存储目标电影每天的排片率
-                
-                for day in range(30):
-                    # 获取动作
-                    raw_action = None
+                    # 初始化策略代理
+                    agent = None
                     if config['type'] == 'SAC':
-                        sac_input = state[np.newaxis, :, :, :7]
-                        current_temp = config.get('temp', 1.0)
-                        raw_action, _ = agent.step(
-                            sac_input,
-                            deterministic=True,
-                            softmax_temp=current_temp
-                        )
+                        agent = sac_agent_instance
+                    elif policy_name == "静态启发式策略":
+                        agent = StaticHeuristic(
+                            init_action=np.array([1 / env.online_movie_count] * env.online_movie_count))
                     elif policy_name == "效率启发式策略":
+                        init_act = np.array([1 / env.online_movie_count] * env.online_movie_count)
                         current_movie_names = [m['MovieName'] for m in env.current_movie_list]
-                        raw_action = agent.step(state, current_movie_names)
-                    else:
-                        raw_action = agent.step(state)
-                    
-                    # 应用约束
-                    if config['use_constraint']:
-                        action = apply_dynamic_hard_constraint(raw_action, state, env.total_show_count)
-                    else:
-                        action = raw_action
-                    
-                    # 找到目标电影在当前排片中的索引和排片率
-                    current_movie_names = [m['MovieName'] for m in env.current_movie_list]
-                    scheduling_rate = 0.0
-                    
-                    if target_movie_name in current_movie_names:
-                        movie_index = current_movie_names.index(target_movie_name)
-                        scheduling_rate = action[movie_index]
-                    
-                    movie_scheduling_rates.append(scheduling_rate)
-                    
-                    # 执行动作
-                    new_state, reward, done, info = env.step(action, policy_name=policy_name)
-                    state = new_state
-                    
-                    if done:
-                        break
+                        agent = EfficiencyHeuristic(
+                            init_action=init_act,
+                            next_day_movie_name=current_movie_names,
+                            total_show_count=env.total_show_count)
+                    elif policy_name == "贪婪启发式策略":
+                        agent = GreedyHeuristic()
                 
-                # 保存数据
-                all_scheduling_data.append({
-                    'scenario': scenario_name,
-                    'start_date': start_date_str,
-                    'target_movie': target_movie_name,
-                    'policy': policy_name,
-                    'scheduling_rates': movie_scheduling_rates
-                })
+                    # 收集30天的数据
+                    movie_scheduling_rates = []  # 存储目标电影每天的排片率
+                
+                    for day in range(30):
+                        # 获取动作
+                        raw_action = None
+                        if config['type'] == 'SAC':
+                            sac_input = state[np.newaxis, :, :, :7]
+                            current_temp = config.get('temp', 1.0)
+                            raw_action, _ = agent.step(
+                                sac_input,
+                                deterministic=True,
+                                softmax_temp=current_temp
+                            )
+                        elif policy_name == "效率启发式策略":
+                            current_movie_names = [m['MovieName'] for m in env.current_movie_list]
+                            raw_action = agent.step(state, current_movie_names)
+                        else:
+                            raw_action = agent.step(state)
+                    
+                        # 应用约束
+                        if config['use_constraint']:
+                            action = apply_dynamic_hard_constraint(raw_action, state, env.total_show_count)
+                        else:
+                            action = raw_action
+                    
+                        # 找到目标电影在当前排片中的索引和排片率
+                        current_movie_names = [m['MovieName'] for m in env.current_movie_list]
+                        scheduling_rate = 0.0
+                        
+                        if target_movie_name in current_movie_names:
+                            movie_index = current_movie_names.index(target_movie_name)
+                            scheduling_rate = action[movie_index]
+                        
+                        movie_scheduling_rates.append(scheduling_rate)
+                    
+                        # 记录每日排片详情
+                        current_movie_names = [m['MovieName'] for m in env.current_movie_list]
+                        daily_schedule_info = []
+                        for i, (movie_name, sched_rate) in enumerate(zip(current_movie_names, action)):
+                            daily_schedule_info.append(f"{movie_name}: {sched_rate:.4f}")
+                        
+                        # 执行动作
+                        new_state, reward, done, info = env.step(action, policy_name=policy_name)
+                        state = new_state
+                        
+                        if done:
+                            break
+                
+                    # 保存数据
+                    all_scheduling_data.append({
+                        'scenario': scenario_name,
+                        'start_date': start_date_str,
+                        'target_movie': target_movie_name,
+                        'policy': policy_name,
+                        'scheduling_rates': movie_scheduling_rates
+                    })
+                    
+                    # 记录最终的影片选择和排片率
+                    final_movie_names = [m['MovieName'] for m in env.current_movie_list]
+                    final_schedule_info = []
+                    for i, (movie_name, sched_rate) in enumerate(zip(final_movie_names, action)):
+                        final_schedule_info.append(f"{movie_name}: {sched_rate:.4f}")
+                    
+                    print_and_log(f"{policy_name:<22}: 收集完成 ({len(movie_scheduling_rates)} 天数据)", log_file)
+                    print_and_log(f"    选片结果: {final_movie_names}", log_file)
+                    print_and_log(f"    排片率: {final_schedule_info}", log_file)
     
     return all_scheduling_data
 
