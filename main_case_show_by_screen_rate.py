@@ -320,6 +320,8 @@ def collect_scheduling_data():
                     movie_scheduling_rates = []  # 存储目标电影每天的排片率
                 
                     for day in range(30):
+                        current_movie_names = [m['MovieName'] for m in env.current_movie_list]
+
                         # 获取动作
                         raw_action = None
                         if config['type'] == 'SAC':
@@ -331,7 +333,6 @@ def collect_scheduling_data():
                                 softmax_temp=current_temp
                             )
                         elif policy_name == "效率启发式策略":
-                            current_movie_names = [m['MovieName'] for m in env.current_movie_list]
                             raw_action = agent.step(state, current_movie_names)
                         else:
                             raw_action = agent.step(state)
@@ -343,7 +344,6 @@ def collect_scheduling_data():
                             action = raw_action
                     
                         # 找到目标电影在当前排片中的索引和排片率
-                        current_movie_names = [m['MovieName'] for m in env.current_movie_list]
                         scheduling_rate = 0.0
                         
                         if target_movie_name in current_movie_names:
@@ -353,15 +353,17 @@ def collect_scheduling_data():
                         movie_scheduling_rates.append(scheduling_rate)
                     
                         # 记录每日排片详情
-                        current_movie_names = [m['MovieName'] for m in env.current_movie_list]
                         daily_schedule_info = []
                         for i, (movie_name, sched_rate) in enumerate(zip(current_movie_names, action)):
                             daily_schedule_info.append(f"{movie_name}: {sched_rate:.4f}")
+                        daily_schedule_info_str = ",".join(daily_schedule_info)
                         
                         # 执行动作
                         new_state, reward, done, info = env.step(action, policy_name=policy_name)
                         state = new_state
-                        
+
+                        print_and_log(f"      {policy_name}, 第{day+1}天, 选片结果: {current_movie_names}", log_file)
+                        print_and_log(f"      {policy_name}, 第{day+1}天, 排片率: {daily_schedule_info_str}", log_file)
                         if done:
                             break
                 
@@ -374,16 +376,8 @@ def collect_scheduling_data():
                         'scheduling_rates': movie_scheduling_rates
                     })
                     
-                    # 记录最终的影片选择和排片率
-                    final_movie_names = [m['MovieName'] for m in env.current_movie_list]
-                    final_schedule_info = []
-                    for i, (movie_name, sched_rate) in enumerate(zip(final_movie_names, action)):
-                        final_schedule_info.append(f"{movie_name}: {sched_rate:.4f}")
-                    
-                    print_and_log(f"{policy_name:<22}: 收集完成 ({len(movie_scheduling_rates)} 天数据)", log_file)
-                    print_and_log(f"    选片结果: {final_movie_names}", log_file)
-                    print_and_log(f"    排片率: {final_schedule_info}", log_file)
-    
+                    print_and_log(f"{policy_name:<22}: 收集完成 ({len(movie_scheduling_rates)} 天数据)，平均排片率{sum(movie_scheduling_rates)/len(movie_scheduling_rates)}", log_file)
+
     return all_scheduling_data
 
 
