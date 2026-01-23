@@ -111,7 +111,7 @@ def train_sac_only(args):
             for t in range(40):
                 sac_obs = state[:, :, :7]
 
-                # 遵循你以前的逻辑：前 start_training_steps 步雷打不动地随机采样
+                # 前 start_training_steps 步雷打不动地随机采样
                 if total_steps < args.start_training_steps:
                     env_action = np.random.rand(args.online_movie_count);
                     env_action /= np.sum(env_action)
@@ -156,7 +156,7 @@ def train_sac_only(args):
 
             pbar.set_postfix({'收益': f'{ep_reward:.1f}', '最高': f'{max_income:.1f}'})
 
-    # === 【画图逻辑，一个字都没改你的】 ===
+    # 绘制训练曲线
     try:
         plt.rcParams['font.sans-serif'] = ['SimHei', 'Arial Unicode MS', 'sans-serif']
         plt.rcParams['axes.unicode_minus'] = False
@@ -178,7 +178,7 @@ def train_sac_only(args):
     except:
         pass
 
-    # === 【新增】保存训练结果到CSV文件 ===
+    # === 保存训练结果到CSV文件 ===
     # 确保所有数组长度一致
     max_len = len(episode_rewards_list)
     

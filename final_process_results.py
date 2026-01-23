@@ -70,7 +70,7 @@ plt.figure(figsize=(12, 8))
 # 定义颜色映射
 colors = {'Baseline SAC': 'blue', 'No LSTM': 'red', 'No Entropy': 'green'}
 
-# 直接使用原始数据，不再进行重采样
+# 只绘制平滑曲线
 for model_name, df in results_data.items():
     if 'episode' in df.columns and 'reward' in df.columns:
         episodes = df['episode'].values
@@ -81,13 +81,13 @@ for model_name, df in results_data.items():
         episodes = episodes[sorted_indices]
         rewards = rewards[sorted_indices]
         
-        # 绘制原始数据
-        plt.plot(episodes, rewards, alpha=0.3, color=colors.get(model_name, 'black'), linewidth=1, label=f'{model_name} (raw)')
-        
-        # 绘制平滑曲线（使用滚动平均）
+        # 只绘制平滑曲线（使用滚动平均）
         if len(rewards) >= 10:
             smooth_rewards = pd.Series(rewards).rolling(window=10, center=True).mean()
-            plt.plot(episodes, smooth_rewards, color=colors.get(model_name, 'black'), linewidth=2, label=f'{model_name} (smooth)')
+            plt.plot(episodes, smooth_rewards, color=colors.get(model_name, 'black'), linewidth=2, label=f'{model_name}')
+        else:
+            # 如果数据点少于10个，直接绘制原始数据
+            plt.plot(episodes, rewards, color=colors.get(model_name, 'black'), linewidth=2, label=f'{model_name}')
 
 plt.title('SAC Ablation Study - Reward Comparison', fontsize=16, fontweight='bold')
 plt.xlabel('Training Episode', fontsize=12)
