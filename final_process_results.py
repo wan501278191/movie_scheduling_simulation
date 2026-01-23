@@ -70,7 +70,7 @@ plt.figure(figsize=(12, 8))
 # 定义颜色映射
 colors = {'Baseline SAC': 'blue', 'No LSTM': 'red', 'No Entropy': 'green'}
 
-# 只绘制平滑曲线
+# 只绘制平滑曲线，使用analyze_training_curve.py中的平滑方法
 for model_name, df in results_data.items():
     if 'episode' in df.columns and 'reward' in df.columns:
         episodes = df['episode'].values
@@ -81,10 +81,16 @@ for model_name, df in results_data.items():
         episodes = episodes[sorted_indices]
         rewards = rewards[sorted_indices]
         
-        # 只绘制平滑曲线（使用滚动平均）
+        # 使用与analyze_training_curve.py相同的平滑方法
         if len(rewards) >= 10:
-            smooth_rewards = pd.Series(rewards).rolling(window=10, center=True).mean()
-            plt.plot(episodes, smooth_rewards, color=colors.get(model_name, 'black'), linewidth=2, label=f'{model_name}')
+            # 动态平滑窗口大小
+            window = max(10, int(len(rewards) * 0.05))  # 使用数据的5%作为窗口，最小为10
+            
+            # 指数加权移动平均平滑
+            smoothed_mean = pd.Series(rewards).ewm(span=window, adjust=False).mean()
+            
+            # 绘制平滑曲线
+            plt.plot(episodes, smoothed_mean, color=colors.get(model_name, 'black'), linewidth=2.5, label=f'{model_name}')
         else:
             # 如果数据点少于10个，直接绘制原始数据
             plt.plot(episodes, rewards, color=colors.get(model_name, 'black'), linewidth=2, label=f'{model_name}')
