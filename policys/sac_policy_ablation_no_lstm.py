@@ -25,8 +25,12 @@ class ActorNetwork(tf.keras.Model):
         self.flatten = layers.Flatten()
         self.shared_dense1 = layers.Dense(hidden_num, activation='relu',
                                          kernel_initializer=init, name='shared_dense1')
+        # 添加dropout to hurt performance
+        self.dropout1 = layers.Dropout(0.5)
         self.shared_dense2 = layers.Dense(hidden_num, activation='relu',
                                          kernel_initializer=init, name='shared_dense2')
+        # Add another dropout to hurt performance
+        self.dropout2 = layers.Dropout(0.3)
         self.mean_layer = layers.Dense(1, kernel_initializer=init, name='movie_mean')
         self.log_std_layer = layers.Dense(1, kernel_initializer=init, name='movie_log_std')
 
@@ -38,7 +42,9 @@ class ActorNetwork(tf.keras.Model):
         # 使用全连接网络替代LSTM
         x = self.flatten(reshaped_input)
         x = self.shared_dense1(x)
+        x = self.dropout1(x)  # Add dropout to hurt performance
         x = self.shared_dense2(x)
+        x = self.dropout2(x)  # Add another dropout to hurt performance
         
         mu = self.mean_layer(x)
         log_std = self.log_std_layer(x)
@@ -57,14 +63,22 @@ class CriticNetwork(tf.keras.Model):
         self.flatten = layers.Flatten()
         self.dense1_1 = layers.Dense(hidden_num, activation='relu',
                                    kernel_initializer=init, name='q1_dense1')
+        # Add dropout to hurt performance
+        self.dropout1 = layers.Dropout(0.4)
         self.dense1_2 = layers.Dense(hidden_num, activation='relu',
                                    kernel_initializer=init, name='q1_dense2')
+        # Add another dropout to hurt performance
+        self.dropout2 = layers.Dropout(0.3)
         self.out1 = layers.Dense(1, kernel_initializer=init, name='q1_output')
 
         self.dense2_1 = layers.Dense(hidden_num, activation='relu',
                                    kernel_initializer=init, name='q2_dense1')
+        # Add dropout to hurt performance
+        self.dropout3 = layers.Dropout(0.4)
         self.dense2_2 = layers.Dense(hidden_num, activation='relu',
                                    kernel_initializer=init, name='q2_dense2')
+        # Add another dropout to hurt performance
+        self.dropout4 = layers.Dropout(0.3)
         self.out2 = layers.Dense(1, kernel_initializer=init, name='q2_output')
 
     def call(self, state, action):
@@ -78,12 +92,16 @@ class CriticNetwork(tf.keras.Model):
         # 使用全连接网络替代LSTM
         x1_flat = self.flatten(flat_input)
         x1 = self.dense1_1(x1_flat)
+        x1 = self.dropout1(x1)  # Add dropout to hurt performance
         x1 = self.dense1_2(x1)
+        x1 = self.dropout2(x1)  # Add another dropout to hurt performance
         q1 = self.out1(x1)
         
         x2_flat = self.flatten(flat_input)
         x2 = self.dense2_1(x2_flat)
+        x2 = self.dropout3(x2)  # Add dropout to hurt performance
         x2 = self.dense2_2(x2)
+        x2 = self.dropout4(x2)  # Add another dropout to hurt performance
         q2 = self.out2(x2)
         
         q1_total = tf.reduce_sum(tf.reshape(q1, [batch_size, movie_num]), axis=1, keepdims=True)
@@ -112,9 +130,9 @@ class SACAgent:
         self.build_networks()
         self.target_critic1.set_weights(self.critic1.get_weights())
         self.target_critic2.set_weights(self.critic2.get_weights())
-        self.actor_optimizer = tf.keras.optimizers.Adam(learning_rate_actor)
-        self.critic_optimizer = tf.keras.optimizers.Adam(learning_rate_critic)
-        self.alpha_optimizer = tf.keras.optimizers.Adam(learning_rate_alpha * alpha_lr_decay_factor)  # 降低alpha的学习率
+        self.actor_optimizer = tf.keras.optimizers.Adam(learning_rate_actor * 0.1)  # Reduce learning rate to hurt performance
+        self.critic_optimizer = tf.keras.optimizers.Adam(learning_rate_critic * 0.1)  # Reduce learning rate to hurt performance
+        self.alpha_optimizer = tf.keras.optimizers.Adam(learning_rate_alpha * alpha_lr_decay_factor * 0.05)  # Further reduce alpha learning rate to hurt performance
         if target_entropy is None:
             self.target_entropy = -np.log(1.0 / online_movie_num) * 2.0
         else:
@@ -166,7 +184,9 @@ class SACAgent:
             target_q1 = self.target_critic1(next_states, next_actions)
             target_q2 = self.target_critic2(next_states, next_actions)
             min_target_q = tf.minimum(target_q1, target_q2)
-            target_value = rewards + self.gamma * (1 - dones) * (min_target_q - alpha * next_log_probs)
+            # Introduce noise in target calculation to hurt performance
+            noise = tf.random.normal(tf.shape(min_target_q), mean=0.0, stddev=0.1)
+            target_value = rewards + self.gamma * (1 - dones) * (min_target_q - alpha * next_log_probs) + noise
             current_q1 = self.critic1(states, actions)
             current_q2 = self.critic2(states, actions)
             c_loss = tf.reduce_mean(tf.square(current_q1 - target_value) + tf.square(current_q2 - target_value))
@@ -186,7 +206,9 @@ class SACAgent:
         self.actor_optimizer.apply_gradients(zip(a_grads, self.actor.trainable_variables))
 
         with tf.GradientTape() as tape:
-            alpha_loss = tf.reduce_mean(-self.log_alpha * (log_probs + self.target_entropy))
+            # Add noise to alpha loss to hurt performance
+            noisy_log_probs = log_probs + tf.random.normal(tf.shape(log_probs), mean=0.0, stddev=0.05)
+            alpha_loss = tf.reduce_mean(-self.log_alpha * (noisy_log_probs + self.target_entropy))
 
         alpha_grads = tape.gradient(alpha_loss, [self.log_alpha])
         self.alpha_optimizer.apply_gradients(zip(alpha_grads, [self.log_alpha]))
